@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
+import useSWR from 'swr';
 import { GuestbookForm } from './components/GuestbookForm';
 import { GuestbookList } from './components/GuestbookList';
 import { fetchMessages, postMessage } from './services/guestbookService';
@@ -6,43 +7,39 @@ import { GuestEntry } from './types';
 import { BookOpen } from 'lucide-react';
 
 export default function App() {
-  const [entries, setEntries] = useState<GuestEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const loadEntries = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await fetchMessages();
-      setEntries(data);
-    } catch (error) {
-      console.error('Failed to load entries', error);
-    } finally {
-      setIsLoading(false);
+  // 1. Use SWR for data fetching
+  // 'refreshInterval: 10000' refreshes data every 10 seconds
+  const { data: entries, isLoading, mutate } = useSWR<GuestEntry[]>(
+    '/api/guestbook',
+    fetchMessages,
+    {
+      refreshInterval: 10000,
+      fallbackData: [], // Initial empty state
     }
-  }, []);
-
-  useEffect(() => {
-    loadEntries();
-  }, [loadEntries, refreshKey]);
+  );
 
   const handleMessagePosted = async (name: string, message: string) => {
-    // Optimistic update for better UX in Demo
+    // 2. Optimistic UI Update
+    // Create a temporary entry to show immediately
     const optimisticEntry: GuestEntry = {
       id: Math.random().toString(36).substr(2, 9),
       name,
       message,
       date: new Date().toISOString(),
     };
-    
-    // Show optimistic entry immediately
-    setEntries(prev => [optimisticEntry, ...prev]);
 
-    // Send to backend
+    const currentEntries = entries || [];
+    const updatedEntries = [optimisticEntry, ...currentEntries];
+
+    // Mutate the local cache immediately (false = do not revalidate yet)
+    // This makes the UI feel instant
+    await mutate(updatedEntries, false);
+
+    // Send the actual request to the backend
     await postMessage(name, message);
-    
-    // In a real app, we might re-fetch to ensure sync with server timestamps
-    // setRefreshKey(prev => prev + 1); 
+
+    // Trigger a re-fetch from the server to ensure data consistency
+    await mutate();
   };
 
   return (
@@ -81,10 +78,10 @@ export default function App() {
                 Recent Messages
               </h2>
               <span className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">
-                {entries.length} entries
+                {entries ? entries.length : 0} entries
               </span>
             </div>
-            <GuestbookList entries={entries} isLoading={isLoading} />
+            <GuestbookList entries={entries || []} isLoading={isLoading} />
           </section>
         </div>
 

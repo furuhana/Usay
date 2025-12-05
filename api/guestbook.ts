@@ -1,7 +1,10 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
-// Mocking Next.js types for this standalone TS file context
+// Note: In a real Next.js project, you would import these types from 'next'
+// import type { NextApiRequest, NextApiResponse } from 'next';
+
+// Mocking Next.js types for this standalone TS file context if 'next' isn't installed in the preview environment
 type NextApiRequest = any;
 type NextApiResponse = any;
 
@@ -34,14 +37,12 @@ export default async function handler(
 
     await doc.loadInfo();
     
-    // ---------------------------------------------------------
-    // CHANGE 1: Specifically look for the '2025' tab first!
-    // If '2025' is not found, fallback to the first sheet.
-    // ---------------------------------------------------------
+    // Updated: specific sheet selection logic
+    // Try to find the sheet named "2025", otherwise fallback to the first sheet
     let sheet = doc.sheetsByTitle['2025'];
     if (!sheet) {
-        console.warn("Sheet '2025' not found, falling back to first sheet.");
-        sheet = doc.sheetsByIndex[0];
+      console.warn('Sheet "2025" not found, falling back to index 0');
+      sheet = doc.sheetsByIndex[0];
     }
 
     // 3. Handle Requests
@@ -52,15 +53,11 @@ export default async function handler(
         return res.status(400).json({ error: 'Name and message are required' });
       }
 
-      // ---------------------------------------------------------
-      // CHANGE 2: Use readable local time (Beijing Time)
-      // ---------------------------------------------------------
-      const readableDate = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-
+      // Updated: Using lowercase keys to match specific sheet headers (date, name, message)
       const newRow = {
         name: name,
         message: message,
-        date: readableDate, 
+        date: new Date().toISOString(), // Auto-generated server-side timestamp
       };
 
       await sheet.addRow(newRow);
@@ -70,6 +67,7 @@ export default async function handler(
     if (req.method === 'GET') {
       const rows = await sheet.getRows();
       
+      // Updated: Fetching values using lowercase header names
       const entries = rows.map((row) => ({
         name: row.get('name'),
         message: row.get('message'),
