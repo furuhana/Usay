@@ -18,10 +18,14 @@ export default async function handler(
 
   try {
     // 1. Initialize Auth - Uses environment variables for security
+    // Fix: Explicitly handle newline characters in the private key for Vercel
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY
+      ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
+
     const serviceAccountAuth = new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      // Replace escaped newlines for Vercel environment variable compatibility
-      key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      key: privateKey,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
