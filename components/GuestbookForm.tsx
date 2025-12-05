@@ -1,99 +1,54 @@
 import React, { useState } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 
-interface GuestbookFormProps {
-  onMessagePosted: (name: string, message: string) => Promise<void>;
+interface InputBarProps {
+  onSendMessage: (message: string) => Promise<void>;
+  disabled: boolean;
 }
 
-export const GuestbookForm: React.FC<GuestbookFormProps> = ({ onMessagePosted }) => {
-  const [name, setName] = useState('');
+export const GuestbookForm: React.FC<InputBarProps> = ({ onSendMessage, disabled }) => {
   const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !message.trim()) return;
+    if (!message.trim() || isSending || disabled) return;
 
-    setIsSubmitting(true);
-    setError(null);
-
+    setIsSending(true);
     try {
-      await onMessagePosted(name, message);
-      // Reset form on success
-      setName('');
+      await onSendMessage(message);
       setMessage('');
-    } catch (err) {
-      setError('Failed to send message. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setIsSending(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-slate-100">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">Sign the Guestbook</h2>
-        <p className="text-slate-500">Leave a note for us and the community!</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
-            Name
-          </label>
+    <div className="fixed bottom-0 left-0 w-full z-40 px-4 pb-6 pt-4 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent">
+      <div className="max-w-2xl mx-auto">
+        <form onSubmit={handleSubmit} className="flex gap-0 shadow-[0_0_15px_rgba(0,0,0,0.8)]">
           <input
-            id="name"
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-            placeholder="Your name"
-            required
-            disabled={isSubmitting}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="message" className="block text-sm font-medium text-slate-700 mb-1">
-            Message
-          </label>
-          <textarea
-            id="message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            rows={3}
-            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
-            placeholder="Write your message here..."
-            required
-            disabled={isSubmitting}
+            disabled={disabled || isSending}
+            placeholder="向集体意识广播讯号..."
+            className="flex-1 bg-black border-2 border-neutral-600 border-r-0 text-white px-4 py-3 focus:outline-none focus:border-white focus:ring-0 transition-all font-mono placeholder-neutral-600"
+            autoFocus
           />
-        </div>
-
-        {error && (
-          <div className="text-red-500 text-sm bg-red-50 p-2 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || !name.trim() || !message.trim()}
-          className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-200"
-        >
-          {isSubmitting ? (
-            <>
+          <button
+            type="submit"
+            disabled={disabled || isSending || !message.trim()}
+            className="bg-neutral-800 border-2 border-neutral-600 border-l-0 text-white px-6 hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center group"
+          >
+            {isSending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Sending...</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              <span>Post Message</span>
-            </>
-          )}
-        </button>
-      </form>
+            ) : (
+              <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

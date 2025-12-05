@@ -1,36 +1,19 @@
 import React from 'react';
 import { GuestEntry } from '../types';
-import { formatDistanceToNow } from 'date-fns'; // Note: In a real app, install date-fns
 
 interface GuestbookListProps {
   entries: GuestEntry[];
   isLoading: boolean;
 }
 
-// Simple date formatter to avoid external dependencies for this demo
-const formatDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (e) {
-    return 'Just now';
-  }
-};
-
 export const GuestbookList: React.FC<GuestbookListProps> = ({ entries, isLoading }) => {
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6 opacity-50">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="animate-pulse bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <div className="h-4 bg-slate-200 rounded w-1/4 mb-3"></div>
-            <div className="h-3 bg-slate-100 rounded w-3/4"></div>
+          <div key={i} className="border-l-2 border-neutral-700 pl-4 py-2 animate-pulse">
+            <div className="h-4 bg-neutral-800 w-1/3 mb-2"></div>
+            <div className="h-4 bg-neutral-900 w-2/3"></div>
           </div>
         ))}
       </div>
@@ -39,30 +22,41 @@ export const GuestbookList: React.FC<GuestbookListProps> = ({ entries, isLoading
 
   if (entries.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-100 border-dashed">
-        <p>No messages yet. Be the first to sign!</p>
+      <div className="text-center py-20 border-2 border-dashed border-neutral-800 text-neutral-600 font-mono tracking-widest">
+        [ 未接收到任何讯号 ]
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8 pb-32">
       {entries.map((entry, index) => (
         <div 
           key={entry.id || index} 
-          className="group bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all duration-200"
+          className="relative pl-6 border-l-2 border-neutral-700 hover:border-white transition-colors duration-300 group"
         >
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-bold text-slate-800 text-lg group-hover:text-indigo-600 transition-colors">
+          {/* Metadata Header */}
+          <div className="flex flex-wrap items-baseline gap-x-3 mb-2 font-mono text-xs uppercase tracking-wider">
+            <span className="font-bold text-white group-hover:text-glow">
               {entry.name}
-            </h3>
-            <span className="text-xs text-slate-400 font-medium bg-slate-50 px-2 py-1 rounded-full">
-              {formatDate(entry.date)}
             </span>
+            <span className="text-neutral-500">
+              [来自 {entry.date}]
+            </span>
+            {entry.oc && (
+              <span className="text-neutral-400 bg-neutral-900 px-2 py-0.5 border border-neutral-800">
+                设定: {entry.oc}
+              </span>
+            )}
           </div>
-          <p className="text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
+
+          {/* Message Body */}
+          <p className="text-neutral-300 font-sans text-lg leading-relaxed whitespace-pre-wrap break-words opacity-90 group-hover:opacity-100 transition-opacity">
             {entry.message}
           </p>
+          
+          {/* Decorative Dot */}
+          <div className="absolute -left-[5px] top-1.5 w-2 h-2 bg-black border border-neutral-500 group-hover:bg-white transition-colors" />
         </div>
       ))}
     </div>

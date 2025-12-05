@@ -17,8 +17,7 @@ export default async function handler(
   }
 
   try {
-    // 1. Initialize Auth - Uses environment variables for security
-    // Fix: Explicitly handle newline characters in the private key for Vercel
+    // 1. Initialize Auth
     const privateKey = process.env.GOOGLE_PRIVATE_KEY
       ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
       : undefined;
@@ -37,8 +36,7 @@ export default async function handler(
 
     await doc.loadInfo();
     
-    // Updated: specific sheet selection logic
-    // Try to find the sheet named "2025", otherwise fallback to the first sheet
+    // Target sheet "2025" with fallback
     let sheet = doc.sheetsByTitle['2025'];
     if (!sheet) {
       console.warn('Sheet "2025" not found, falling back to index 0');
@@ -47,17 +45,19 @@ export default async function handler(
 
     // 3. Handle Requests
     if (req.method === 'POST') {
-      const { name, message } = req.body;
+      // NOW accepting 'date' and 'oc' from the client side
+      const { name, message, date, oc } = req.body;
 
       if (!name || !message) {
         return res.status(400).json({ error: 'Name and message are required' });
       }
 
-      // Updated: Using lowercase keys to match specific sheet headers (date, name, message)
+      // Map to lowercase headers strictly: date, name, message, oc
       const newRow = {
         name: name,
         message: message,
-        date: new Date().toISOString(), // Auto-generated server-side timestamp
+        date: date || new Date().toLocaleString(), // Use client date or fallback, do not auto-generate new timestamp
+        oc: oc || '',
       };
 
       await sheet.addRow(newRow);
@@ -67,11 +67,11 @@ export default async function handler(
     if (req.method === 'GET') {
       const rows = await sheet.getRows();
       
-      // Updated: Fetching values using lowercase header names
       const entries = rows.map((row) => ({
         name: row.get('name'),
         message: row.get('message'),
         date: row.get('date'),
+        oc: row.get('oc'), // Retrieve the new column
       }));
 
       // Return most recent first

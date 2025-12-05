@@ -1,97 +1,136 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { GuestbookForm } from './components/GuestbookForm';
 import { GuestbookList } from './components/GuestbookList';
+import { UserProfileModal } from './components/UserProfileModal';
 import { fetchMessages, postMessage } from './services/guestbookService';
 import { GuestEntry } from './types';
-import { BookOpen } from 'lucide-react';
+import { Ghost, Settings2 } from 'lucide-react';
+
+interface UserProfile {
+  name: string;
+  date: string;
+  oc: string;
+}
 
 export default function App() {
-  // 1. Use SWR for data fetching
-  // 'refreshInterval: 10000' refreshes data every 10 seconds
+  // Data Fetching
   const { data: entries, isLoading, mutate } = useSWR<GuestEntry[]>(
     '/api/guestbook',
     fetchMessages,
-    {
-      refreshInterval: 10000,
-      fallbackData: [], // Initial empty state
-    }
+    { refreshInterval: 10000, fallbackData: [] }
   );
 
-  const handleMessagePosted = async (name: string, message: string) => {
-    // 2. Optimistic UI Update
-    // Create a temporary entry to show immediately
+  // User State
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '迷途幽灵_' + Math.floor(Math.random() * 1000),
+    date: '', // Will be set on mount
+    oc: '',
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Toast Notification State
+  const [toast, setToast] = useState<{message: string, visible: boolean}>({ message: '', visible: false });
+
+  // Load profile from local storage on mount (if you were persisting it, optional here)
+  useEffect(() => {
+    // Ideally check localStorage here
+    const saved = localStorage.getItem('ghostTramProfile');
+    if (saved) {
+      setProfile(JSON.parse(saved));
+    } else {
+      // Set initial dynamic date client-side
+      setProfile(p => ({...p, date: new Date().toLocaleString('zh-CN')}));
+    }
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast({ message: msg, visible: true });
+    setTimeout(() => setToast({ message: '', visible: false }), 3000);
+  };
+
+  const handleSaveProfile = (newProfile: UserProfile) => {
+    setProfile(newProfile);
+    localStorage.setItem('ghostTramProfile', JSON.stringify(newProfile));
+    showToast("身份设定已覆写 / IDENTITY OVERWRITTEN");
+  };
+
+  const handleSendMessage = async (messageText: string) => {
+    // Optimistic Update
     const optimisticEntry: GuestEntry = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      message,
-      date: new Date().toISOString(),
+      id: Math.random().toString(36),
+      name: profile.name,
+      message: messageText,
+      date: profile.date,
+      oc: profile.oc
     };
 
     const currentEntries = entries || [];
-    const updatedEntries = [optimisticEntry, ...currentEntries];
-
-    // Mutate the local cache immediately (false = do not revalidate yet)
-    // This makes the UI feel instant
-    await mutate(updatedEntries, false);
-
-    // Send the actual request to the backend
-    await postMessage(name, message);
-
-    // Trigger a re-fetch from the server to ensure data consistency
+    await mutate([optimisticEntry, ...currentEntries], false);
+    
+    // API Call
+    await postMessage(profile.name, messageText, profile.date, profile.oc);
+    
+    // Revalidate & Feedback
     await mutate();
+    showToast("讯号已映射到集体意识 / SIGNAL BROADCASTED");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
-      {/* Decorative background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-      </div>
-
-      <div className="relative max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
-        
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center p-3 bg-white rounded-xl shadow-md mb-4 text-indigo-600">
-            <BookOpen className="w-8 h-8" />
+    <div className="min-h-screen font-sans selection:bg-white selection:text-black">
+      
+      {/* Header Area */}
+      <header className="fixed top-0 left-0 w-full z-30 bg-gradient-to-b from-[#050505] to-transparent pt-8 pb-12 px-6">
+        <div className="max-w-4xl mx-auto flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 uppercase text-glow">
+              幽灵電车
+            </h1>
+            <h2 className="text-sm md:text-base font-mono text-neutral-400 tracking-[0.2em] border-l-2 border-neutral-600 pl-3">
+              来自各种时空中的幽灵们
+            </h2>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl mb-3">
-            Digital Guestbook
-          </h1>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Powered by Next.js & Google Sheets
-          </p>
-        </div>
 
-        <div className="grid gap-10">
-          {/* Input Section */}
-          <section>
-            <GuestbookForm onMessagePosted={handleMessagePosted} />
-          </section>
-
-          {/* List Section */}
-          <section>
-            <div className="flex items-center justify-between mb-6 px-2">
-              <h2 className="text-xl font-semibold text-slate-800">
-                Recent Messages
-              </h2>
-              <span className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">
-                {entries ? entries.length : 0} entries
-              </span>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="group flex flex-col items-center gap-1 text-neutral-400 hover:text-white transition-colors"
+          >
+            <div className="p-2 border-2 border-neutral-600 group-hover:border-white rounded-full transition-all bg-black">
+              <Ghost className="w-6 h-6" />
             </div>
-            <GuestbookList entries={entries || []} isLoading={isLoading} />
-          </section>
+            <span className="text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+              身份设定
+            </span>
+          </button>
         </div>
+      </header>
 
-        <div className="mt-16 text-center border-t border-slate-200 pt-8">
-          <p className="text-sm text-slate-400">
-            Note: This preview runs in Demo Mode. <br/>
-            Real implementation requires setting up the <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-600">/api/guestbook</code> route.
-          </p>
+      {/* Main Content (Scrollable) */}
+      <main className="relative z-10 pt-48 px-6 max-w-3xl mx-auto">
+        <GuestbookList entries={entries || []} isLoading={isLoading} />
+      </main>
+
+      {/* Fixed Bottom Input */}
+      <GuestbookForm 
+        onSendMessage={handleSendMessage} 
+        disabled={isLoading} 
+      />
+
+      {/* Modals & Overlays */}
+      <UserProfileModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        currentProfile={profile}
+        onSave={handleSaveProfile}
+      />
+
+      {/* Retro Toast */}
+      <div className={`fixed top-8 left-1/2 -translate-x-1/2 z-[70] transition-all duration-500 transform ${toast.visible ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0 pointer-events-none'}`}>
+        <div className="bg-white text-black px-6 py-3 font-bold font-mono border-2 border-neutral-400 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+          > {toast.message}
         </div>
       </div>
+
     </div>
   );
 }
