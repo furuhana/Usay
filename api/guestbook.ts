@@ -1,10 +1,7 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
-// Note: In a real Next.js project, you would import these types from 'next'
-// import type { NextApiRequest, NextApiResponse } from 'next';
-
-// Mocking Next.js types for this standalone TS file context if 'next' isn't installed in the preview environment
+// Mocking Next.js types for this standalone TS file context
 type NextApiRequest = any;
 type NextApiResponse = any;
 
@@ -37,8 +34,15 @@ export default async function handler(
 
     await doc.loadInfo();
     
-    // Assumes the guestbook is on the first sheet
-    const sheet = doc.sheetsByIndex[0];
+    // ---------------------------------------------------------
+    // CHANGE 1: Specifically look for the '2025' tab first!
+    // If '2025' is not found, fallback to the first sheet.
+    // ---------------------------------------------------------
+    let sheet = doc.sheetsByTitle['2025'];
+    if (!sheet) {
+        console.warn("Sheet '2025' not found, falling back to first sheet.");
+        sheet = doc.sheetsByIndex[0];
+    }
 
     // 3. Handle Requests
     if (req.method === 'POST') {
@@ -48,11 +52,15 @@ export default async function handler(
         return res.status(400).json({ error: 'Name and message are required' });
       }
 
-      // Updated: Using lowercase keys to match specific sheet headers (date, name, message)
+      // ---------------------------------------------------------
+      // CHANGE 2: Use readable local time (Beijing Time)
+      // ---------------------------------------------------------
+      const readableDate = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+
       const newRow = {
         name: name,
         message: message,
-        date: new Date().toISOString(), // Auto-generated server-side timestamp
+        date: readableDate, 
       };
 
       await sheet.addRow(newRow);
@@ -62,7 +70,6 @@ export default async function handler(
     if (req.method === 'GET') {
       const rows = await sheet.getRows();
       
-      // Updated: Fetching values using lowercase header names
       const entries = rows.map((row) => ({
         name: row.get('name'),
         message: row.get('message'),
